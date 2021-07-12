@@ -1,32 +1,34 @@
-project(llvm2c)
-cmake_minimum_required(VERSION 2.8)
-aux_source_directory(. SRC_LIST)
-set(FILES core/Func.h core/Func.cpp core/Block.h core/Block.cpp core/Program.h core/Program.cpp type/Type.h type/Type.cpp type/TypeHandler.h type/TypeHandler.cpp expr/Expr.h expr/Expr.cpp expr/BinaryExpr.h expr/BinaryExpr.cpp expr/UnaryExpr.h expr/UnaryExpr.cpp parser/ProgramParser.h parser/cfunc.h parser/passes.h parser/createAllocas.cpp parser/arrowify.cpp parser/createBlocks.cpp parser/findDeclaredFunctions.cpp parser/createExpressions.cpp parser/createFunctionParameters.cpp parser/createFunctions.cpp parser/initializeGlobalVars.cpp parser/determineIncludes.cpp parser/findMetadataFunctionNames.cpp parser/findMetadataVariableNames.cpp parser/parseMetadataTypes.cpp parser/memcpyToAssign.cpp parser/parseStructDeclarations.cpp parser/parseStructItems.cpp parser/nameFunctions.cpp parser/parseBreaks.cpp parser/constval.cpp parser/identifyInlinableBlocks.cpp parser/refDeref.cpp parser/fixMainParameters.cpp parser/addSignCasts.cpp parser/computeGlobalVarsOrder.cpp parser/createConstants.cpp parser/deleteRedundantCasts.cpp parser/SimplifyingExprVisitor.cpp parser/deleteUnusedVariables.cpp parser/inlineBlocks.cpp parser/extractVars.cpp parser/prepareBitcastUnion.cpp parser/ProgramParser.cpp writer/CWriter.cpp writer/Writer.cpp writer/ExprWriter.cpp parser/toinst.cpp)
-add_executable(llvm2c ${SRC_LIST} ${FILES})
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g -Wall -fno-rtti")
+cmake_minimum_required(VERSION 3.1)
+project(llvm2c CXX)
 
-find_package(LLVM REQUIRED CONFIG)
-if (${LLVM_PACKAGE_VERSION} VERSION_GREATER "3.4")
-  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${LLVM_DIR}")
-  include(LLVMConfig)
+# --------------------------------------------------
+# Build type
+# --------------------------------------------------
+if(NOT CMAKE_BUILD_TYPE)
+  message(STATUS "Build type not set. Setting default.")
+  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "" FORCE)
 endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "RelWithDebInfo"
+                                                     "MinSizeRel" "Release")
+
+# --------------------------------------------------
+# Compilation flags
+# --------------------------------------------------
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wextra -pedantic -fno-rtti")
+
+# --------------------------------------------------
+# LLVM
+# --------------------------------------------------
+find_package(LLVM REQUIRED CONFIG)
+list(APPEND CMAKE_MODULE_PATH "${LLVM_DIR}")
 include(AddLLVM)
 
 add_definitions(${LLVM_DEFINITIONS})
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
-
-if (LLVM_SRC_PATH)
-  include_directories(${LLVM_SRC_PATH}/include)
-  SET(LLVM_INCLUDE_DIRS ${LLVM_SRC_PATH}/include)
-  message(STATUS "Got LLVM_SRC_PATH ${LLVM_SRC_PATH}")
-endif(LLVM_SRC_PATH)
-if (LLVM_BUILD_PATH)
-  include_directories(${LLVM_BUILD_PATH}/include)
-  link_directories(${LLVM_BUILD_PATH}/lib)
-  SET(LLVM_LIBRARY_DIRS ${LLVM_BUILD_PATH}/lib)
-  message(STATUS "Got LLVM_BUILD_PATH ${LLVM_BUILD_PATH}")
-endif(LLVM_BUILD_PATH)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
@@ -34,44 +36,101 @@ message(STATUS "LLVM include dir: ${LLVM_INCLUDE_DIRS}")
 message(STATUS "LLVM libraries dir: ${LLVM_LIBRARY_DIRS}")
 message(STATUS "LLVM definitions: ${LLVM_DEFINITIONS}")
 
-add_definitions(-DHAVE_LLVM)
-
-
 option(LLVM_LINK_DYLIB "Link with LLVM dynamically" ON)
-if (LLVM_LINK_DYLIB)
-	message(STATUS "LLVM linking: dynamic")
-	if (${LLVM_PACKAGE_VERSION} VERSION_LESS "3.8")
-		set(llvm_libs LLVM-${LLVM_PACKAGE_VERSION})
-	else()
-		# only LLVM 3.8+ provide unversioned library
-		set(llvm_libs LLVM)
-	endif()
+if(LLVM_LINK_DYLIB)
+  message(STATUS "LLVM linking: dynamic")
+  if(${LLVM_PACKAGE_VERSION} VERSION_LESS "3.8")
+    set(llvm_libs LLVM-${LLVM_PACKAGE_VERSION})
+  else()
+    # only LLVM 3.8+ provide unversioned library
+    set(llvm_libs LLVM)
+  endif()
 else()
-	message(STATUS "LLVM linking: static")
+  message(STATUS "LLVM linking: static")
 
-	# Find the libraries that correspond to the LLVM components
-	# that we wish to use
-	if (${LLVM_PACKAGE_VERSION} VERSION_GREATER "3.4")
-		llvm_map_components_to_libnames(llvm_libs support core irreader bitwriter linker)
-	else()
-		llvm_map_components_to_libraries(llvm_libs support core irreader bitwriter linker)
-	endif()
+  # Find the libraries that correspond to the LLVM components
+  # that we wish to use
+  if(${LLVM_PACKAGE_VERSION} VERSION_GREATER "3.4")
+    llvm_map_components_to_libnames(llvm_libs support core irreader bitwriter linker)
+  else()
+    llvm_map_components_to_libraries(llvm_libs support core irreader bitwriter linker)
+  endif()
 endif()
 
-target_link_libraries(llvm2c ${llvm_libs})
-install(TARGETS llvm2c RUNTIME DESTINATION bin)
+# --------------------------------------------------
+# llvm2c
+# --------------------------------------------------
+set(llvm2c_sources
+  main.cpp
 
-enable_testing()
-set(TEST_WORKDIR "${PROJECT_SOURCE_DIR}/test")
-add_test(NAME loops WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run loops)
-add_test(NAME math WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run math)
-add_test(NAME asm WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run asm)
-add_test(NAME struct WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run struct)
-add_test(NAME pointer WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run pointer)
-add_test(NAME branching WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run branching)
-add_test(NAME statements WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run statements)
-add_test(NAME standard_lib WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run standard_lib)
-add_test(NAME phi WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run phi)
-add_test(NAME globals WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run globals)
-add_test(NAME union WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run union)
-add_test(NAME main WORKING_DIRECTORY ${TEST_WORKDIR} COMMAND ./run main)
+  core/Block.cpp
+  core/Block.h
+  core/Func.cpp
+  core/Func.h
+  core/Program.cpp
+  core/Program.h
+
+  expr/BinaryExpr.cpp
+  expr/BinaryExpr.h
+  expr/Expr.cpp
+  expr/Expr.h
+  expr/UnaryExpr.cpp
+  expr/UnaryExpr.h
+
+  parser/ProgramParser.cpp
+  parser/ProgramParser.h
+  parser/SimplifyingExprVisitor.cpp
+  parser/addSignCasts.cpp
+  parser/arrowify.cpp
+  parser/cfunc.h
+  parser/computeGlobalVarsOrder.cpp
+  parser/constval.cpp
+  parser/createAllocas.cpp
+  parser/createBlocks.cpp
+  parser/createConstants.cpp
+  parser/createExpressions.cpp
+  parser/createFunctionParameters.cpp
+  parser/createFunctions.cpp
+  parser/deleteRedundantCasts.cpp
+  parser/deleteUnusedVariables.cpp
+  parser/determineIncludes.cpp
+  parser/extractVars.cpp
+  parser/findDeclaredFunctions.cpp
+  parser/findMetadataFunctionNames.cpp
+  parser/findMetadataVariableNames.cpp
+  parser/fixMainParameters.cpp
+  parser/identifyInlinableBlocks.cpp
+  parser/initializeGlobalVars.cpp
+  parser/inlineBlocks.cpp
+  parser/memcpyToAssign.cpp
+  parser/nameFunctions.cpp
+  parser/parseBreaks.cpp
+  parser/parseMetadataTypes.cpp
+  parser/parseStructDeclarations.cpp
+  parser/parseStructItems.cpp
+  parser/passes.h
+  parser/prepareBitcastUnion.cpp
+  parser/refDeref.cpp
+  parser/toinst.cpp
+  parser/toinst.h
+
+  type/Type.cpp
+  type/Type.h
+  type/TypeHandler.cpp
+  type/TypeHandler.h
+
+  writer/CWriter.cpp
+  writer/ExprWriter.cpp
+  writer/Writer.cpp
+)
+add_executable(llvm2c ${llvm2c_sources})
+target_link_libraries(llvm2c ${llvm_libs})
+
+include(GNUInstallDirs)
+install(TARGETS llvm2c
+        RUNTIME DESTINATION ${CMAKE_BINARY_DIR})
+
+# --------------------------------------------------
+# Subdirectories
+# --------------------------------------------------
+add_subdirectory(test)

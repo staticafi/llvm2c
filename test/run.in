@@ -8,7 +8,7 @@ fi
 LABEL="$1"
 FOLDER=$LABEL
 
-if ! [[ -e llvm2c ]]; then
+if ! [[ -e @LLVM2C@ ]]; then
     echo "llvm2c not found!"
     exit 1
 fi
@@ -28,22 +28,22 @@ if [[ "$LABEL" == "standard_lib" ]]; then
 fi
 
 
-for f in inputs/$FOLDER/*.c; do
+for f in @CMAKE_CURRENT_SOURCE_DIR@/inputs/$FOLDER/*.c; do
     echo "Testing $f"
-    clang $LDFLAGS "$f" -o $TEMPDIR/orig
-    clang "$f" -g -emit-llvm -S -Xclang -disable-O0-optnone -o $TEMPDIR/temp.ll #2>/dev/null
+    @CLANG@ $LDFLAGS "$f" -o $TEMPDIR/orig
+    @CLANG@ "$f" -g -emit-llvm -S -Xclang -disable-O0-optnone -o $TEMPDIR/temp.ll #2>/dev/null
 
     if [[ $LABEL = "phi" ]]; then
-        opt -mem2reg $TEMPDIR/temp.ll -o $TEMPDIR/temp.ll
+        @OPT@ -mem2reg $TEMPDIR/temp.ll -o $TEMPDIR/temp.ll
     fi
 
-    ./llvm2c $TEMPDIR/temp.ll --o $TEMPDIR/temp.c # >> /dev/null
+    @LLVM2C@ $TEMPDIR/temp.ll --o $TEMPDIR/temp.c # >> /dev/null
 
     if [[ $? != 0 ]]; then
         echo -e "\n\t[NOK] llvm2c failed to translate $f!"
         FAILED=$((FAILED+1))
     else
-        clang $LDFLAGS $TEMPDIR/temp.c -o $TEMPDIR/new
+        @CLANG@ $LDFLAGS $TEMPDIR/temp.c -o $TEMPDIR/new
         if [[ $? != 0 ]]; then
             echo -e "\n\t[NOK] Clang could not compile translated file $f!"
             FAILED=$((FAILED+1))
@@ -58,7 +58,7 @@ for f in inputs/$FOLDER/*.c; do
               fi
           done
 
-          if diff -y --suppress-common-lines expected/$FOLDER/$(basename $f) $TEMPDIR/temp.c; then
+          if diff -y --suppress-common-lines @CMAKE_CURRENT_SOURCE_DIR@/expected/$FOLDER/$(basename $f) $TEMPDIR/temp.c; then
               echo -e "\n\t[OK ] Files are as expected"
           else
               echo -e "\n\t[NOK] Translated C file is different than expected"
