@@ -113,7 +113,7 @@ void SignCastsVisitor::visit(SwitchExpr& expr) {
     expr.cmp->accept(*this);
 }
 
-void SignCastsVisitor::visit(AsmExpr& expr) {
+void SignCastsVisitor::visit(AsmExpr& /*expr*/) {
 }
 
 void SignCastsVisitor::visit(CallExpr& expr) {

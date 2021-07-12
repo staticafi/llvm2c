@@ -26,7 +26,7 @@ void CWriter::endStruct() {
 }
 
 void CWriter::indent(size_t tabs) {
-    for (auto t = 0; t < tabs; ++t) {
+    for (size_t t = 0; t < tabs; ++t) {
         out << "    ";
     }
 }
@@ -45,7 +45,7 @@ void CWriter::startFunction(StrRef ret, StrRef name) {
 
 void CWriter::startArrayFunction(StrRef ty, size_t levels, StrRef name) {
     out << ty << " (";
-    for (auto i = 0; i < levels; ++i) {
+    for (size_t i = 0; i < levels; ++i) {
         out << "*";
     }
     out << name;

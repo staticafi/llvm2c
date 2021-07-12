@@ -16,12 +16,12 @@ Expr* createUndefValue(const llvm::Type* ty, Program& program) {
     std::vector<Expr*> values;
 
     if (auto* ST = llvm::dyn_cast_or_null<llvm::ArrayType>(ty)) {
-        for (auto i = 0; i < ST->getNumElements(); ++i) {
+        for (unsigned i = 0; i < ST->getNumElements(); ++i) {
             values.push_back(createUndefValue(ST->getElementType(), program));
         }
 
     } else if (auto* ST = llvm::dyn_cast_or_null<llvm::StructType>(ty)) {
-        for (auto i = 0; i < ST->getNumElements(); ++i) {
+        for (unsigned i = 0; i < ST->getNumElements(); ++i) {
             values.push_back(createUndefValue(ST->getElementType(i), program));
         }
     } else {
@@ -39,9 +39,8 @@ Expr* createConstantValue(const llvm::Value* val, Program& program) {
         return createUndefValue(val->getType(), program);
     }
 
-    if (auto CPN = llvm::dyn_cast_or_null<llvm::ConstantPointerNull>(val)) {
+    if (llvm::isa<llvm::ConstantPointerNull>(val))
         return program.makeExpr<Value>("0", program.getType(val->getType()));
-    }
 
     if (const llvm::GlobalVariable* GV = llvm::dyn_cast_or_null<llvm::GlobalVariable>(val)) {
         auto RE = program.getGlobalRef(GV);
@@ -86,7 +85,6 @@ Expr* createConstantValue(const llvm::Value* val, Program& program) {
             program.addOwnership(std::move(param));
             return program.addOwnership(std::move(call));
         } else {
-            const auto& fval = CFP->getValueAPF();
             std::string CFPvalue;
             if (CFP->getType()->isFloatTy()) {
                 CFPvalue = std::to_string(CFP->getValueAPF().convertToFloat());
@@ -118,7 +116,7 @@ Expr* createConstantValue(const llvm::Value* val, Program& program) {
     if (const auto* CAZ = llvm::dyn_cast_or_null<llvm::ConstantAggregateZero>(val)) {
         std::vector<Expr*> values;
 
-        for (int i = 0; i < CAZ->getNumElements(); ++i) {
+        for (unsigned i = 0; i < CAZ->getNumElements(); ++i) {
             auto* elem = CAZ->getElementValue(i);
             values.push_back(createConstantValue(elem, program));
         }
@@ -149,7 +147,7 @@ Expr* createConstantValue(const llvm::Value* val, Program& program) {
     if (const llvm::ConstantDataSequential* CDS = llvm::dyn_cast_or_null<llvm::ConstantDataSequential>(val)) {
         std::vector<Expr*> values;
 
-        for (int i = 0; i < CDS->getNumElements(); ++i) {
+        for (unsigned i = 0; i < CDS->getNumElements(); ++i) {
             values.push_back(createConstantValue(CDS->getElementAsConstant(i), program));
         }
 

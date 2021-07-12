@@ -29,7 +29,7 @@ public:
     std::map<Expr*, DerefExpr*> derefs; //Map used for storing pointers to DerefExpr (used in store instruction parsing)
 
     // instead of `goto block`, the block will be outputed in place
-    bool doInline;
+    bool doInline = false;
 
     // is this first block of a function?
     bool isFirst;

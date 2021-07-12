@@ -123,7 +123,7 @@ void Writer::structDefinitions(const Program& program) {
     SECTION_END;
 }
 
-void Writer::unionDefinition(const Program& program, const UnionType* strct) {
+void Writer::unionDefinition(const Program& /*program*/, const UnionType* strct) {
     wr.startUnion(strct->name);
 
     for (const auto& pair : strct->items) {

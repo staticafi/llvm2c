@@ -139,9 +139,8 @@ static Expr* parseExtractValueInstruction(const llvm::Instruction& ins, Program&
     for (unsigned idx : EVI->getIndices()) {
         std::unique_ptr<Expr> element = nullptr;
 
-        if (StructType* ST = llvm::dyn_cast_or_null<StructType>(prevType)) {
+        if (llvm::isa<StructType>(prevType))
             element = std::make_unique<AggregateElement>(expr, idx);
-        }
 
         if (llvm::dyn_cast_or_null<ArrayType>(prevType)) {
             auto newVal = std::make_unique<Value>(std::to_string(idx), program.typeHandler.uint.get());

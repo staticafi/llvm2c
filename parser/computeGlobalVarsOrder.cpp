@@ -35,11 +35,8 @@ static void parseGlobalVar(const llvm::GlobalVariable& gvar, Program& program) {
     llvm::PointerType* PT = llvm::cast<llvm::PointerType>(gvar.getType());
 
     auto type = program.getType(PT->getElementType());
-    if (!type) {
-        if (auto ST = llvm::dyn_cast_or_null<llvm::StructType>(PT->getElementType())) {
-        }
+    if (!type)
         assert(false && "Unable to determine global variable type");
-    }
 
     auto var = std::make_unique<GlobalValue>(gvarName, nullptr, type);
     var->isStatic = gvar.hasInternalLinkage();

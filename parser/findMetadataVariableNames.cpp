@@ -16,7 +16,6 @@ static void setMetadataInfo(const llvm::CallInst* ins, Block* block) {
     if (Value* variable = llvm::dyn_cast_or_null<Value>(referred)) {
         llvm::Metadata* varMD = llvm::dyn_cast_or_null<llvm::MetadataAsValue>(ins->getOperand(1))->getMetadata();
         llvm::DILocalVariable* localVar = llvm::dyn_cast_or_null<llvm::DILocalVariable>(varMD);
-        llvm::DIBasicType* type = llvm::dyn_cast_or_null<llvm::DIBasicType>(localVar->getType());
 
         if (!localVar->getName().empty()) {
             auto& counters = block->func->variableCounters;

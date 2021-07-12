@@ -8,9 +8,8 @@ static void createConstantsForOperands(const llvm::User* ins, Program& program) 
 
         // assumption: the GV that is an operand of this has already been initialized
         // reason: pass ComputeGlobalVarsOrder has been completed
-        if (auto GV = llvm::dyn_cast_or_null<llvm::GlobalVariable>(op.get())) {
+        if (llvm::isa<llvm::GlobalVariable>(op.get()))
             continue;
-        }
 
         if (auto *user = llvm::dyn_cast_or_null<llvm::User>(op.get())) {
             if (!llvm::isa<llvm::Instruction>(user))

@@ -24,9 +24,7 @@
 
 
 Block::Block(const std::string &blockName, const llvm::BasicBlock* block, Func* func)
-	: block(block),
-	func(func),
-	blockName(blockName), doInline(false) { }
+    : block(block), func(func), blockName(blockName) { }
 
 void Block::addOwnership(std::unique_ptr<Expr> expr) {
     func->program->ownership.push_back(std::move(expr));
