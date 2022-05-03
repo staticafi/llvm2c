@@ -5,6 +5,7 @@
 #include "cfunc.h"
 #include "compare.h"
 
+#include <llvm/ADT/iterator_range.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/IntrinsicInst.h>
@@ -54,6 +55,15 @@ static std::unordered_set<int> read_only = {
 
 Expr* parseLLVMInstruction(const llvm::Instruction& ins, Program& program);
 static void parseInlineASM(const llvm::Instruction& ins, Func* func, Block* block);
+
+// FIXME: Remove this when LLVM 8 is the minimal version for LLVM2C!
+static inline llvm::iterator_range<llvm::User::op_iterator> args_wrapper(llvm::CallInst *CI) {
+    return make_range(CI->arg_begin(), CI->arg_end());
+}
+
+static inline llvm::iterator_range<llvm::User::const_op_iterator> args_wrapper(const llvm::CallInst *CI) {
+    return make_range(CI->arg_begin(), CI->arg_end());
+}
 
 const llvm::Instruction *getNextNonDebugInstruction(const llvm::Instruction *ins) {
 #if LLVM_VERSION_MAJOR > 6
@@ -730,7 +740,7 @@ static void parseCallInstruction(const llvm::Instruction& ins, Func* func, Block
     }
 
     int i = 0;
-    for (const llvm::Use& param : callInst->arg_operands()) {
+    for (const llvm::Use& param : args_wrapper(callInst)) {
         //sometimes LLVM uses these functions with more arguments than their C counterparts
         if ((funcName.compare("memcpy") == 0 || funcName.compare("memmove") == 0 || funcName.compare("memset") == 0)  && i == 3) {
             break;
@@ -830,7 +840,7 @@ static void parseInlineASM(const llvm::Instruction& ins, Func* func, Block* bloc
     }
 
     std::vector<Expr*> args;
-    for (const llvm::Use& arg : callInst->arg_operands()) {
+    for (const llvm::Use& arg : args_wrapper(callInst)) {
         if (!func->getExpr(arg.get())) {
             createFuncCallParam(arg, *func->program);
         }
