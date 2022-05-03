@@ -32,9 +32,7 @@ static void parseGlobalVar(const llvm::GlobalVariable& gvar, Program& program) {
         program.globalVarNames.insert(gvarName);
     }
 
-    llvm::PointerType* PT = llvm::cast<llvm::PointerType>(gvar.getType());
-
-    auto type = program.getType(PT->getElementType());
+    auto type = program.getType(gvar.getValueType());
     if (!type)
         assert(false && "Unable to determine global variable type");
 

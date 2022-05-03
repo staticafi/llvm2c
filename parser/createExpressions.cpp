@@ -114,7 +114,7 @@ static void createFuncCallParam(const llvm::Use& param, Program& program) {
     if (llvm::PointerType* PT = llvm::dyn_cast_or_null<llvm::PointerType>(param->getType())) {
         if (llvm::isa<llvm::ConstantPointerNull>(param)) {
             program.exprMap[param] = createConstantValue(param, program);
-        } else if (PT->getElementType()->isFunctionTy() && !param->getName().empty()) {
+        } else if (PT->getPointerElementType()->isFunctionTy() && !param->getName().empty()) {
             auto val = std::make_unique<Value>(param->getName().str(), program.typeHandler.voidType.get());
             program.exprMap[param] = program.addOwnership(std::move(val));
         } else {
