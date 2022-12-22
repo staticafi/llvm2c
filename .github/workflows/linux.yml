@@ -1,0 +1,134 @@
+---
+name: Linux CI
+on:
+  # TODO: rename to main when we remove the binary blobs from the git history
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Ubuntu
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux with GCC
+          - {os: 20.04, llvm: '6.0', compiler: gcc}
+          - {os: 20.04, llvm: 7, compiler: gcc}
+          - {os: 20.04, llvm: 8, compiler: gcc}
+          - {os: 20.04, llvm: 9, compiler: gcc}
+          - {os: 20.04, llvm: 10, compiler: gcc}
+          - {os: 20.04, llvm: 11, compiler: gcc}
+          - {os: 20.04, llvm: 12, compiler: gcc}
+          - {os: 22.04, llvm: 13, compiler: gcc}
+          - {os: 22.04, llvm: 14, compiler: gcc}
+          - {os: 22.04, llvm: 14, compiler: gcc, type: Debug}
+
+          # Linux with Clang
+          - {os: 20.04, llvm: '6.0', compiler: clang}
+          - {os: 20.04, llvm: 7, compiler: clang}
+          - {os: 20.04, llvm: 8, compiler: clang}
+          - {os: 20.04, llvm: 9, compiler: clang}
+          - {os: 20.04, llvm: 10, compiler: clang}
+          - {os: 20.04, llvm: 11, compiler: clang}
+          - {os: 20.04, llvm: 12, compiler: clang}
+          - {os: 22.04, llvm: 13, compiler: clang}
+          - {os: 22.04, llvm: 14, compiler: clang}
+          - {os: 22.04, llvm: 14, compiler: clang, type: Debug}
+
+    runs-on: ubuntu-${{matrix.os}}
+    env:
+      # for colours in ninja
+      CLICOLOR_FORCE: 1
+
+    steps:
+      - name: Checkout llvm2c
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install cmake ninja-build clang-${{matrix.llvm}} \
+                           llvm-${{matrix.llvm}}-dev
+
+      - name: Set the environment
+        id: env
+        run: |
+          # Set buildtype
+          if [[ "${{matrix.type}}" != "" ]]; then
+            echo "BUILD_TYPE=${{matrix.type}}" >> $GITHUB_ENV
+          else
+            echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
+          fi
+
+          # TODO: add sanitizer support to llvm2c's CMakeLists.txt
+
+          # Build with sanitizers
+          CFLAGS="-fsanitize=address,undefined -g -fno-omit-frame-pointer"
+          CXXFLAGS="-fsanitize=address,undefined -g -fno-omit-frame-pointer"
+          LDFLAGS="-fsanitize=address,undefined"
+
+          # Fail on UBSAN
+          CFLAGS="-fno-sanitize-recover=all $CFLAGS"
+          CXXFLAGS="-fno-sanitize-recover=all $CXXFLAGS"
+
+          # Fail on any compiler warning
+          CFLAGS="-Werror $CFLAGS"
+          CXXFLAGS="-Werror $CXXFLAGS"
+
+          # Select compiler and set compiler flags
+          if [[ "${{matrix.compiler}}" = "clang" ]]; then
+            # Clang
+            CC="clang-${{matrix.llvm}}"
+            CXX="clang++-${{matrix.llvm}}"
+
+            # Force coloured output
+            CFLAGS="-fcolor-diagnostics $CFLAGS"
+            CXXFLAGS="-fcolor-diagnostics $CXXFLAGS"
+          else
+            # GCC
+            CC="gcc"
+            CXX="g++"
+
+            # Force coloured output
+            CFLAGS="-fdiagnostics-color $CFLAGS"
+            CXXFLAGS="-fdiagnostics-color $CXXFLAGS"
+          fi
+
+          # Save the environment
+          echo "CC=$CC" >> $GITHUB_ENV
+          echo "CXX=$CXX" >> $GITHUB_ENV
+          echo "CFLAGS=$CFLAGS" >> $GITHUB_ENV
+          echo "CXXFLAGS=$CXXFLAGS" >> $GITHUB_ENV
+          echo "LDFLAGS=$LDFLAGS" >> $GITHUB_ENV
+
+      - name: '[Dynamic LLVM] Configure CMake project'
+        run: |
+          cmake -S.                                                          \
+                -B_build                                                     \
+                -GNinja                                                      \
+                -DCMAKE_BUILD_TYPE:STRING="${{matrix.type}}"                 \
+                -DLLVM_DIR:PATH="$(llvm-config-${{matrix.llvm}} --cmakedir)"
+
+      - name: '[Dynamic LLVM] Build'
+        run: cmake --build _build
+
+      - name: '[Dynamic LLVM] Run tests'
+        run: cmake --build _build --target check
+
+      - name: '[Static LLVM] Re-configure CMake project'
+        run: |
+          cmake -S.                        \
+                -B_build                   \
+                -DLLVM_LINK_DYLIB:BOOL=OFF
+          cmake --build _build --target clean
+
+      - name: '[Static LLVM] Build'
+        run: cmake --build _build
+
+      - name: '[Static LLVM] Run tests'
+        run: cmake --build _build --target check

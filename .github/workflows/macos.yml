@@ -1,0 +1,88 @@
+---
+name: macOS CI
+on:
+  # TODO: rename to main when we remove the binary blobs from the git history
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: 'macOS (llvm: ${{matrix.llvm}}, build: ${{matrix.build}})'
+    strategy:
+      fail-fast: false
+      matrix:
+        llvm: [14]
+        build: [Debug, RelWithDebInfo]
+
+    runs-on: macos-latest
+    env:
+      # for colours in ninja
+      CLICOLOR_FORCE: 1
+
+    steps:
+      - name: Checkout llvm2c
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: brew install ninja llvm@${{matrix.llvm}}
+
+      - name: Set environment
+        id: env
+        run: |
+          # TODO: add sanitizer support to llvm2c's CMakeLists.txt
+
+          # Build with sanitizers
+          CFLAGS="-fsanitize=address,undefined -g -fno-omit-frame-pointer"
+          CXXFLAGS="-fsanitize=address,undefined -g -fno-omit-frame-pointer"
+          LDFLAGS="-fsanitize=address,undefined"
+
+          # Fail on UBSAN
+          CFLAGS="-fno-sanitize-recover=all $CFLAGS"
+          CXXFLAGS="-fno-sanitize-recover=all $CXXFLAGS"
+
+          # Fail on any compiler warning
+          CFLAGS="-Werror $CFLAGS"
+          CXXFLAGS="-Werror $CXXFLAGS"
+
+          # Force coloured output
+          CFLAGS="-fcolor-diagnostics $CFLAGS"
+          CXXFLAGS="-fcolor-diagnostics $CXXFLAGS"
+
+          # Save the environment
+          echo "CC=$CC" >> $GITHUB_ENV
+          echo "CXX=$CXX" >> $GITHUB_ENV
+          echo "CFLAGS=$CFLAGS" >> $GITHUB_ENV
+          echo "CXXFLAGS=$CXXFLAGS" >> $GITHUB_ENV
+          echo "LDFLAGS=$LDFLAGS" >> $GITHUB_ENV
+
+      - name: '[Dynamic LLVM] Configure CMake project'
+        run: |
+          LLVM_CONFIG="$(brew --prefix llvm@${{matrix.llvm}})/bin/llvm-config"
+          cmake -S.                                            \
+                -B_build                                       \
+                -GNinja                                        \
+                -DCMAKE_BUILD_TYPE:STRING=${{matrix.build}}    \
+                -DLLVM_DIR:PATH="$("$LLVM_CONFIG" --cmakedir)"
+
+      - name: '[Dynamic LLVM] Build'
+        run: cmake --build _build
+
+      - name: '[Dynamic LLVM] Run tests'
+        run: cmake --build _build --target check
+
+      - name: '[Static LLVM] Re-configure CMake project'
+        run: |
+          cmake -S.                        \
+                -B_build                   \
+                -DLLVM_LINK_DYLIB:BOOL=OFF
+          cmake --build _build --target clean
+
+      - name: '[Static LLVM] Build'
+        run: cmake --build _build
+
+      - name: '[Static LLVM] Run tests'
+        run: cmake --build _build --target check
