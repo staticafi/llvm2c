@@ -1599,8 +1599,10 @@ void createExpressions(const llvm::Module* module, Program& program, bool bitcas
                                                                 program.makeExpr<Value>(std::to_string(elemBytes) + "ULL", ull), true);
                         Expr* call = program.makeExpr<CallExpr>(nullptr, "__builtin_alloca", std::vector<Expr*>{bytes},
                                                                 program.typeHandler.pointerTo(program.typeHandler.voidType.get()));
+                        // no cast: the `void*` converts implicitly, and parseMetadataTypes
+                        // may still change var's element type (signedness) after this
                         Value* var = vla->second;
-                        myBlock->addExpr(program.makeExpr<AssignExpr>(var, program.makeExpr<CastExpr>(call, var->getType())));
+                        myBlock->addExpr(program.makeExpr<AssignExpr>(var, call));
                     }
                     break;
                 }

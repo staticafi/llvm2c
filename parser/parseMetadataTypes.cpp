@@ -436,10 +436,24 @@ static void setMetadataInfo(Program& program, const llvm::CallInst* ins, Block* 
         llvm::DILocalVariable* localVar = llvm::dyn_cast_or_null<llvm::DILocalVariable>(varMD);
 
         // A VLA is lowered to an `elem*` (see createAllocas): its DWARF array
-        // type must not replace that
-        for (const auto& vla : program.vlaAllocs)
-            if (vla.second == variable)
-                return;
+        // type must not replace that, but its element type gives the signedness
+        // (`int`, not the IR's default `unsigned int`).  Only when the kinds
+        // match, so a 2-D VLA (IR element `[3 x i32]`) keeps the IR type.
+        for (const auto& vla : program.vlaAllocs) {
+            if (vla.second != variable)
+                continue;
+            auto* diArrayType = llvm::dyn_cast_or_null<llvm::DICompositeType>(localVar->getType());
+            auto* ptrTy = llvm::dyn_cast<PointerType>(variable->getType());
+            if (diArrayType && ptrTy && diArrayType->getTag() == llvm::dwarf::DW_TAG_array_type) {
+                auto elemType = fixType(program, diArrayType->getBaseType(), AT->getPointerElementType());
+                if (elemType.has_value() && elemType.value()->getKind() == ptrTy->type->getKind()) {
+                    p("VSSet VLA pointer element type for: ", variable->valueName, " from: ", ptrTy->type->toString(), " to: ", elemType.value()->toString());
+                    variable->setType(program.typeHandler.pointerTo(elemType.value()));
+                    program.metadatedVars.insert(variable->valueName);
+                }
+            }
+            return;
+        }
 
         // Special handling for VLAs: check if current variable is a VLA
         if (auto currentArrayType = llvm::dyn_cast_or_null<ArrayType>(variable->getType())) {
