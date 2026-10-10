@@ -1,6 +1,7 @@
 #include "ProgramParser.h"
 #include "passes.h"
 #include "InsertVLADecls.h"
+#include "cfunc.h"
 
 #include <llvm/IR/Constants.h>
 #include <llvm/IRReader/IRReader.h>
@@ -136,6 +137,30 @@ void printModule(llvm::Module *m, const std::string &filename) {
     outputFile.close();
 }
 
+// A module may define its own function with a C library name (e.g. remove, strnlen).
+// The writer drops every function with such a name in favour of the header's
+// prototype, so rename the definition: its calls and address uses follow.
+static void renameLibraryNamedDefinitions(llvm::Module* module) {
+    for (llvm::Function& func : module->functions()) {
+        if (func.isDeclaration() || func.hasAvailableExternallyLinkage()) {
+            continue;
+        }
+
+        const std::string name = func.getName().str();
+        if (!isCFunc(name) && !isCMath(name) && !isStdLibFunc(name) && !isStringFunc(name)
+                && !isStdioFunc(name) && !isPthreadFunc(name)) {
+            continue;
+        }
+
+        std::string newName = name + "_llvm2c";
+        for (unsigned i = 1; module->getNamedValue(newName); ++i) {
+            newName = name + "_llvm2c" + std::to_string(i);
+        }
+        func.setName(newName);
+        assert(func.getName() == newName);
+    }
+}
+
 Program ProgramParser::parse(const std::string& file, bool bitcastUnions) {
     Program result;
     llvm::LLVMContext context;
@@ -148,6 +173,7 @@ Program ProgramParser::parse(const std::string& file, bool bitcastUnions) {
 
     // printModule(module.get());
     run_llvm_passes(module.get());
+    renameLibraryNamedDefinitions(module.get());
     const auto *mod = module.get();
 
     RUN_PASS(determineIncludes);
