@@ -172,7 +172,8 @@ void PropagateTypesVisitor::visit(AddExpr& expr) {
     expr.left->accept(*this);
     expr.right->accept(*this);
     expr.setType(expr.left->getType() ? expr.left->getType() : expr.right->getType());
-    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(expr.getType())) {
+    // a wrapping op (no nsw) stays unsigned whatever its operands' types
+    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(expr.getType()); IT && !expr.wraps) {
 	    expr.isUnsigned = IT->unsignedType;
     }
 }
@@ -180,7 +181,8 @@ void PropagateTypesVisitor::visit(SubExpr& expr) {
     expr.left->accept(*this);
     expr.right->accept(*this);
     expr.setType(expr.left->getType() ? expr.left->getType() : expr.right->getType());
-    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(expr.getType())) {
+    // a wrapping op (no nsw) stays unsigned whatever its operands' types
+    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(expr.getType()); IT && !expr.wraps) {
 	    expr.isUnsigned = IT->unsignedType;
     }
 }
@@ -188,7 +190,8 @@ void PropagateTypesVisitor::visit(MulExpr& expr) {
     expr.left->accept(*this);
     expr.right->accept(*this);
     expr.setType(expr.left->getType() ? expr.left->getType() : expr.right->getType());
-    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(expr.getType())) {
+    // a wrapping op (no nsw) stays unsigned whatever its operands' types
+    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(expr.getType()); IT && !expr.wraps) {
 	    expr.isUnsigned = IT->unsignedType;
     }
 }

@@ -521,7 +521,8 @@ static void setMetadataInfo(Program& program, const llvm::CallInst* ins, Block* 
                 return;
             }
 	    a->setType(t.value());
-	    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(a->getType()))
+	    // a wrapping op stays unsigned whatever the variable's debug type
+	    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(a->getType()); IT && !a->wraps)
 		a->isUnsigned = IT->unsignedType;
 	}
     } else if (auto* s = llvm::dyn_cast_or_null<SubExpr>(referred)) {
@@ -536,7 +537,8 @@ static void setMetadataInfo(Program& program, const llvm::CallInst* ins, Block* 
                 return;
             }
 	    s->setType(t.value());
-	    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(s->getType()))
+	    // a wrapping op stays unsigned whatever the variable's debug type
+	    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(s->getType()); IT && !s->wraps)
 		s->isUnsigned = IT->unsignedType;
 	}
     } else if (auto* m = llvm::dyn_cast_or_null<MulExpr>(referred)) {
@@ -551,7 +553,8 @@ static void setMetadataInfo(Program& program, const llvm::CallInst* ins, Block* 
                 return;
             }
 	    m->setType(t.value());
-	    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(m->getType()))
+	    // a wrapping op stays unsigned whatever the variable's debug type
+	    if(auto IT = llvm::dyn_cast_or_null<IntegerType>(m->getType()); IT && !m->wraps)
 		m->isUnsigned = IT->unsignedType;
 	}
     } else if (auto* d = llvm::dyn_cast_or_null<DivExpr>(referred)) {

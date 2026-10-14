@@ -21,6 +21,8 @@ public:
 class AddExpr : public BinaryExpr {
 public:
     bool isUnsigned;
+    // the IR op has no nsw flag: it wraps, so it must compute in unsigned
+    const bool wraps;
 
     AddExpr(Expr*, Expr*, bool isUnsigned);
 
@@ -35,6 +37,8 @@ public:
 class SubExpr : public BinaryExpr {
 public:
     bool isUnsigned;
+    // the IR op has no nsw flag: it wraps, so it must compute in unsigned
+    const bool wraps;
 
     SubExpr(Expr*, Expr*, bool isUnsigned);
 
@@ -61,6 +65,8 @@ public:
 class MulExpr : public BinaryExpr {
 public:
     bool isUnsigned;
+    // the IR op has no nsw flag: it wraps, so it must compute in unsigned
+    const bool wraps;
 
     MulExpr(Expr*, Expr*, bool isUnsigned);
 

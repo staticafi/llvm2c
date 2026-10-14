@@ -18,7 +18,7 @@ BinaryExpr::BinaryExpr(Expr* l, Expr* r, ExprKind kind): ExprBase(kind) {
 }
 
 AddExpr::AddExpr(Expr* l, Expr* r, bool isUnsigned) :
-    BinaryExpr(l, r, EK_AddExpr), isUnsigned(isUnsigned) { }
+    BinaryExpr(l, r, EK_AddExpr), isUnsigned(isUnsigned), wraps(isUnsigned) { }
 
 void AddExpr::accept(ExprVisitor& visitor) {
     visitor.visit(*this);
@@ -29,7 +29,7 @@ bool AddExpr::classof(const Expr* expr) {
 }
 
 SubExpr::SubExpr(Expr* l, Expr* r, bool isUnsigned) :
-    BinaryExpr(l, r, EK_SubExpr), isUnsigned(isUnsigned) { }
+    BinaryExpr(l, r, EK_SubExpr), isUnsigned(isUnsigned), wraps(isUnsigned) { }
 
 void SubExpr::accept(ExprVisitor& visitor) {
     visitor.visit(*this);
@@ -51,7 +51,7 @@ bool AssignExpr::classof(const Expr* expr) {
 }
 
 MulExpr::MulExpr(Expr* l, Expr* r, bool isUnsigned) :
-    BinaryExpr(l, r, EK_MulExpr), isUnsigned(isUnsigned) { }
+    BinaryExpr(l, r, EK_MulExpr), isUnsigned(isUnsigned), wraps(isUnsigned) { }
 
 void MulExpr::accept(ExprVisitor& visitor) {
     visitor.visit(*this);
