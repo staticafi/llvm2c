@@ -1297,6 +1297,22 @@ static void parseBitcastInstruction(const llvm::Instruction& ins, Func* func, Bl
     program.addExpr(&ins, resultingValue);
 }
 
+// a no-nsw add/sub/mul, or a select, &, |, ^ or shift whose unsigned-ness comes from one:
+// C computes it in unsigned
+static bool isWrappingArith(Expr* e) {
+    if (auto* a = llvm::dyn_cast<AddExpr>(e)) return a->wraps;
+    if (auto* s = llvm::dyn_cast<SubExpr>(e)) return s->wraps;
+    if (auto* m = llvm::dyn_cast<MulExpr>(e)) return m->wraps;
+    if (auto* s = llvm::dyn_cast<SelectExpr>(e)) return isWrappingArith(s->left) || isWrappingArith(s->right);
+    if (llvm::isa<AndExpr>(e) || llvm::isa<OrExpr>(e) || llvm::isa<XorExpr>(e)) {
+        auto* b = static_cast<BinaryExpr*>(e);
+        return isWrappingArith(b->left) || isWrappingArith(b->right);
+    }
+    if (llvm::isa<ShlExpr>(e))
+        return isWrappingArith(static_cast<BinaryExpr*>(e)->left);
+    return false;
+}
+
 static Expr* parseCastInstruction(const llvm::Instruction& ins, Program& program) {
     Expr* expr = program.getExpr(ins.getOperand(0));
     
@@ -1378,6 +1394,14 @@ static Expr* parseCastInstruction(const llvm::Instruction& ins, Program& program
         IT = static_cast<IntegerType*>(castExpr->getType());
         castExpr->setType(program.typeHandler.setUnsigned(IT));
         return castExpr;
+    }
+    // a wrapping add/sub/mul is printed in unsigned; sitofp reads it signed,
+    // so cast it back to the signed source type first, as for SExt
+    if (ins.getOpcode() == llvm::Instruction::SIToFP && isWrappingArith(expr)) {
+        auto *recastOrigExpr = program.makeExpr<CastExpr>(expr, program.getType(ins.getOperand(0)->getType()));
+        auto *IT = static_cast<IntegerType*>(recastOrigExpr->getType());
+        recastOrigExpr->setType(program.typeHandler.setSigned(IT));
+        expr = recastOrigExpr;
     }
     auto castExpr = program.makeExpr<CastExpr>(expr, program.getType(CI->getDestTy()));
     auto IT = static_cast<IntegerType*>(castExpr->getType());
